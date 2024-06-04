@@ -46,8 +46,8 @@ if [ "$cmd_not_found" = "1" ]; then
 fi
 
 # Check for pyimg4
-if ! python3 -c 'import pkgutil; exit(not pkgutil.find_loader("pyimg4"))'; then
-    python3 -m pip install pyimg4
+if ! python3 -c 'import importlib; exit(not importlib.util.find_spec("pyimg4"))'; then
+    env PIP_BREAK_SYSTEM_PACKAGES=1 python3 -m pip install pyimg4
 fi
 
 # This would probably go better somewhere else, but I'm not sure where to put it since most of the script is just in functions.
@@ -92,22 +92,6 @@ if [[ $os =~ Darwin ]]; then
     fi
 elif [[ $os =~ Linux ]]; then
     echo "[*] Running on Linux..."
-    curl -LO https://opensource.apple.com/tarballs/cctools/cctools-927.0.2.tar.gz
-    mkdir cctools-tmp
-    tar -xzf cctools-927.0.2.tar.gz -C cctools-tmp/
-    sed -i "s_#include_//_g" cctools-tmp/*cctools-927.0.2/include/mach-o/loader.h
-    sed -i -e "s=<stdint.h>=\n#include <stdint.h>\ntypedef int integer_t;\ntypedef integer_t cpu_type_t;\ntypedef integer_t cpu_subtype_t;\ntypedef integer_t cpu_threadtype_t;\ntypedef int vm_prot_t;=g" cctools-tmp/*cctools-927.0.2/include/mach-o/loader.h
-    cp -r cctools-tmp/*cctools-927.0.2/include/* /usr/local/include/
-    rm -rf cctools-tmp/
-    apt install clang lld build-essential libpng-dev libpng16-16 libxml2-dev pkg-config libplist-utils
-    if [[ ! -e libssl1.1_1.1.1f-1ubuntu2.22_amd64.deb ]]; then
-        curl -SLO http://security.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.22_amd64.deb
-        dpkg -i libssl1.1_1.1.1f-1ubuntu2.22_amd64.deb
-    fi
-    if [[ ! -e libssl-dev_1.1.1f-1ubuntu2.22_amd64.deb ]]; then
-        curl -SLO http://security.ubuntu.com/ubuntu/pool/main/o/openssl/libssl-dev_1.1.1f-1ubuntu2.22_amd64.deb
-        dpkg -i libssl-dev_1.1.1f-1ubuntu2.22_amd64.deb
-    fi
     if [[ $(which systemctl 2>/dev/null) ]]; then
         sudo systemctl stop usbmuxd
     fi
@@ -1603,7 +1587,7 @@ _download_root_fs() {
                 fn="$("$bin"/PlistBuddy -c "Print BuildIdentities:0:Manifest:OS:Info:Path" BuildManifest.plist | tr -d '"')"
             fi
             rm -rf BuildManifest.plist
-            "$bin"/aria2c $ipswurl
+            "$bin"/aria2c -x 16 $ipswurl
             "$bin"/7z x $(find . -name '*.ipsw*')
             if [ "$os" = "Darwin" ]; then
                 asr -source $fn -target "$dir"/$1/$cpid/$3/OS.dmg --embed -erase -noprompt --chunkchecksum --puppetstrings
@@ -2136,7 +2120,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
             _download_ramdisk_boot_files $deviceid $replace 10.3.3
             if [[ "$(./java/bin/java -jar ./Darwin/FirmwareKeysDl-1.0-SNAPSHOT.jar -e 14.3 $deviceid)" == "true" ]]; then
                 _download_ramdisk_boot_files $deviceid $replace 14.3
-            elif [[ "$deviceid" == "iPad"* && ! "$deiceid" == "iPad4"* ]]; then
+            elif [[ "$deviceid" == "iPad"* && ! "$deviceid" == "iPad4"* ]]; then
                 _download_ramdisk_boot_files $deviceid $replace 14.3
             else
                 _download_ramdisk_boot_files $deviceid $replace 12.5.4
@@ -2145,7 +2129,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
             _download_ramdisk_boot_files $deviceid $replace 10.3.3
             if [[ "$(./java/bin/java -jar ./Darwin/FirmwareKeysDl-1.0-SNAPSHOT.jar -e 14.3 $deviceid)" == "true" ]]; then
                 _download_ramdisk_boot_files $deviceid $replace 14.3
-            elif [[ "$deviceid" == "iPad"* && ! "$deiceid" == "iPad4"* ]]; then
+            elif [[ "$deviceid" == "iPad"* && ! "$deviceid" == "iPad4"* ]]; then
                 _download_ramdisk_boot_files $deviceid $replace 14.3
             else
                 _download_ramdisk_boot_files $deviceid $replace 12.5.4
@@ -2153,7 +2137,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
         elif [[ "$version" == "11."* || "$version" == "12."* || "$version" == "13."* || "$version" == "14."* ]]; then
             if [[ "$(./java/bin/java -jar ./Darwin/FirmwareKeysDl-1.0-SNAPSHOT.jar -e 14.3 $deviceid)" == "true" ]]; then
                 _download_ramdisk_boot_files $deviceid $replace 14.3
-            elif [[ "$deviceid" == "iPad"* && ! "$deiceid" == "iPad4"* ]]; then
+            elif [[ "$deviceid" == "iPad"* && ! "$deviceid" == "iPad4"* ]]; then
                 _download_ramdisk_boot_files $deviceid $replace 14.3
             else
                 _download_ramdisk_boot_files $deviceid $replace 12.5.4
@@ -2248,7 +2232,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
         elif [[ "$version" == "11."* || "$version" == "12."* || "$version" == "13."* || "$version" == "14."* ]]; then
             if [[ "$(./java/bin/java -jar ./Darwin/FirmwareKeysDl-1.0-SNAPSHOT.jar -e 14.3 $deviceid)" == "true" ]]; then
                 cd "$dir"/$deviceid/$cpid/ramdisk/14.3
-            elif [[ "$deviceid" == "iPad"* && ! "$deiceid" == "iPad4"* ]]; then
+            elif [[ "$deviceid" == "iPad"* && ! "$deviceid" == "iPad4"* ]]; then
                 cd "$dir"/$deviceid/$cpid/ramdisk/14.3
             else
                 cd "$dir"/$deviceid/$cpid/ramdisk/12.5.4
@@ -2511,7 +2495,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                 elif [[ "$version" == "11."* || "$version" == "12."* || "$version" == "13."* || "$version" == "14."* ]]; then
                     if [[ "$(./java/bin/java -jar ./Darwin/FirmwareKeysDl-1.0-SNAPSHOT.jar -e 14.3 $deviceid)" == "true" ]]; then
                         cd "$dir"/$deviceid/$cpid/ramdisk/14.3
-                    elif [[ "$deviceid" == "iPad"* && ! "$deiceid" == "iPad4"* ]]; then
+                    elif [[ "$deviceid" == "iPad"* && ! "$deviceid" == "iPad4"* ]]; then
                         cd "$dir"/$deviceid/$cpid/ramdisk/14.3
                     else
                         cd "$dir"/$deviceid/$cpid/ramdisk/12.5.4
