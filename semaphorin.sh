@@ -1591,8 +1591,9 @@ _download_root_fs() {
             "$bin"/7z x $(find . -name '*.ipsw*')
             if [ "$os" = "Darwin" ]; then
                 asr -source $fn -target "$dir"/$1/$cpid/$3/OS.dmg --embed -erase -noprompt --chunkchecksum --puppetstrings
+                rm $fn
             else
-                cp $fn "$dir"/$1/$cpid/$3/OS.dmg
+                mv $fn "$dir"/$1/$cpid/$3/OS.dmg
             fi
             if [[ "$deviceid" == "iPhone6"* || "$deviceid" == "iPad4"* ]]; then
                "$bin"/irecovery -f /dev/null
@@ -1600,9 +1601,9 @@ _download_root_fs() {
         fi
     else
         if [ ! -e "$dir"/$1/$cpid/$3/rw.dmg ]; then
+            local fn
             if [ ! -e "$dir"/$1/$cpid/$3/OS.dmg ]; then
                 if [[ "$(../java/bin/java -jar ../Darwin/FirmwareKeysDl-1.0-SNAPSHOT.jar -e $buildid $1)" == "true" ]]; then
-                    local fn
                     "$bin"/pzb -g BuildManifest.plist "$ipswurl"
                     if [ "$os" = "Darwin" ]; then
                         fn="$(/usr/bin/plutil -extract "BuildIdentities".0."Manifest"."OS"."Info"."Path" xml1 -o - BuildManifest.plist | grep '<string>' |cut -d\> -f2 |cut -d\< -f1 | head -1)"
@@ -1647,14 +1648,17 @@ _download_root_fs() {
                     "$bin"/dmg extract $fn "$dir"/$1/$cpid/$3/OS.dmg -k $ivkey
                 fi
             fi
+            rm $fn
             if [ ! -e "$dir"/$1/$cpid/$3/rw.dmg ]; then
                 "$bin"/dmg build "$dir"/$1/$cpid/$3/OS.dmg "$dir"/$1/$cpid/$3/rw.dmg
+                rm "$dir"/$1/$cpid/$3/OS.dmg
             fi
             if [ "$os" = "Darwin" ]; then
                 hdiutil attach -mountpoint /tmp/ios "$dir"/$1/$cpid/$3/rw.dmg
                 sudo diskutil enableOwnership /tmp/ios
                 sudo "$bin"/gnutar -cvf "$dir"/$1/$cpid/$3/OS.tar -C /tmp/ios .
                 hdiutil detach /tmp/ios
+                rm "$dir"/$1/$cpid/$3/rw.dmg
             fi
             rm -rf /tmp/ios
             if [[ "$deviceid" == "iPhone6"* || "$deviceid" == "iPad4"* ]]; then
@@ -2706,7 +2710,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                 sleep 2
                 echo "[*] /dev/$prebootfs created, continuing..."
             fi
-            echo "[*] Uploading $dir/$deviceid/$cpid/$version/OS.dmg, this may take up to 10 minutes.."
+            echo "[*] Uploading $dir/$deviceid/$cpid/$version/OS.dmg, this may take up to 10 minutes or more..."
             "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/sbin/mount_apfs /dev/$systemfs /mnt4"
             "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/sbin/mount_apfs /dev/$datafs /mnt5"
             if [ "$os" = "Darwin" ]; then
@@ -2714,6 +2718,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
             else
                 "$bin"/sshpass -p 'alpine' scp -o StrictHostKeyChecking=no -P 2222 "$dir"/$deviceid/$cpid/$version/OS.dmg root@localhost:/mnt5
             fi
+            rm "$dir"/$deviceid/$cpid/$version/OS.dmg
             if [[ "$r" == "16"* || "$r" == "17"* ]]; then
                 systemdisk=9
                 datadisk=10
@@ -3527,7 +3532,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/sbin/mount -w -t hfs /dev/disk0s1s2 /mnt2" 2> /dev/null
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/sbin/mount -w -t hfs /dev/disk0s1s3 /mnt3" 2> /dev/null
                 if [[ ! "$hit" == 1 ]]; then
-                    echo "[*] Uploading "$dir"/$deviceid/0.0/mnt1.tar.gz, this may take up to 10 minutes.."
+                    echo "[*] Uploading "$dir"/$deviceid/0.0/mnt1.tar.gz, this may take up to 10 minutes or more..."
                     "$bin"/pv "$dir"/$deviceid/0.0/mnt1.tar.gz | "$bin"/sshpass -p "alpine" ssh -p2222 root@localhost 'cat | tar xz -C /'
                     echo "[*] Uploading "$dir"/jb/var.tar.gz, this may take up to 1 minute.."
                     "$bin"/pv "$dir"/jb/var.tar.gz | "$bin"/sshpass -p "alpine" ssh -p2222 root@localhost 'cat | tar xz -C /mnt1/private/var'
@@ -3567,11 +3572,14 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/sbin/mount_hfs /dev/disk0s1s1 /mnt1" 2> /dev/null
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/sbin/mount -w -t hfs -o suid,dev /dev/disk0s1s2 /mnt2" 2> /dev/null
             fi
-            echo "[*] Uploading $dir/$deviceid/$cpid/$version/OS.tar, this may take up to 10 minutes.."
             if [ "$os" = "Darwin" ]; then
+                echo "[*] Uploading $dir/$deviceid/$cpid/$version/OS.tar, this may take up to 10 minutes or more..."
                 "$bin"/pv "$dir"/$deviceid/$cpid/$version/OS.tar | "$bin"/sshpass -p "alpine" ssh -p2222 root@localhost 'cat | tar x -C /mnt1'
+                rm "$dir"/$deviceid/$cpid/$version/OS.tar
             else
+                echo "[*] Uploading $dir/$deviceid/$cpid/$version/rw.dmg, this may take up to 10 minutes or more..."
                 "$bin"/sshpass -p 'alpine' scp -o StrictHostKeyChecking=no -P 2222 -v "$dir"/$deviceid/$cpid/$version/rw.dmg root@localhost:/mnt2
+                rm "$dir"/$deviceid/$cpid/$version/rw.dmg
                 disktomount="$("$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost '/usr/sbin/hdik /mnt2/rw.dmg' | tail -n 1 | cut -d ' ' -f 1)"
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/sbin/mount_hfs -o ro $disktomount /mnt3"
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "cp -av /mnt3/* /mnt1"

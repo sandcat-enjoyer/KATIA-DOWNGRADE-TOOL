@@ -24,13 +24,15 @@
 
 ## How do I use this?
 
-This script deletes everything on your phone, including the main OS if you are not downgrading to iOS 10.3.3 or later. Make sure to backup all of your data before using this script as **anything on the device prior to running this script will be unrecoverable afterwards**. Use this script at your own risk. We are not responsible for any damages caused by you using this script.
+This script deletes everything on your phone, including the main OS if you are not downgrading to iOS 10.3 or later. Make sure to backup all of your data before using this script as **anything on the device prior to running this script will be unrecoverable afterwards**. Use this script at your own risk. We are not responsible for any damages caused by you using this script.
+
+This script will automatically set up a dualboot for iOS 10.3 and later.
 
 To use this app, you need to downgrade to a supported version, and have a supported device.
 
 `xcode-select install` to install `git` on macos
 
-`git clone https://github.com/y08wilm/Semaphorin && cd Semaphorin`
+`git clone https://github.com/LukeZGD/Semaphorin && cd Semaphorin`
 
 Connect device in DFU mode
 
@@ -60,9 +62,7 @@ It should just boot to your requested iOS version normally.
 
 ## Requirements
 
-macOS Catalina or later. The script only officially supports these versions.
-
-Java 8 https://builds.openlogic.com/downloadJDK/openlogic-openjdk/8u262-b10/openlogic-openjdk-8u262-b10-mac-x64.pkg
+macOS Catalina or later, or Linux. The script only officially supports these versions.
 
 Intel Mac. Hackintoshes with AMD CPUs will **NOT** work with this.
 
@@ -73,14 +73,6 @@ At least 20GB of free space on your computer
 USB Type-A port and Lightning cable. USB Type-C ports will **NOT** work with this script. If you're using a Mac that only has a USB-C port (such as 12" MacBooks, and late Intel MacBook Airs) a dongle/dock with a USB-A port should work just fine with a standard USB-A to Lightning cable.
 
 Working iDevice: The script has to backup `apticket.der`, `sep-firmware.img4`, `Baseband`, and `keybags` from your device before you can downgrade to an older iOS version.
-
-## Support
-
-We now have a [Discord server](https://discord.gg/WQWDBBYJTb) where you can get help with this project.
-
-If, for whatever reason, that invite link does not work, please contact [wilm271](https://t.me/wilm271) on Telegram.
-
-The Discord server is strictly for Semaphorin support only. Please don't bring personal issues into our server.
 
 ## Setup.app bypass
 
@@ -107,11 +99,6 @@ We back up the `activation_records` from your main OS prior to downgrading your 
       
    *Note: This does slightly affect battery life due to the way it works. You probably aren't using this script for battery life though, are you.
 
-   ### Unsupported OS
-   The script only officially works on macOS 10.15 or later due to some limitations on the developer's end. You have to install one of those versions to use the script. Please do not ask us about this.
-
-Linux and Windows support is not planned either, do not ask about this either.
-
    ### Unable to connect to WiFi networks, incorrect password.
    This is caused by an issue that's *impossible* to fix. You need to connect to an open WiFi network
 
@@ -127,12 +114,6 @@ Linux and Windows support is not planned either, do not ask about this either.
 
    ### Meridian is absent (on iPads)
    iPads have uicache issues with most jailbreaking tools. To open Meridian, enter `meridian://` in Safari's address bar and press Enter. Until further notice, this does not work, due to Safari not working on that version of iOS. This may be fixed at a later date. Sorry for the inconvenience.
-
-   ### Chimera is absent (on iPads)
-   iPads have uicache issues with most jailbreaking tools. To open Chimera, enter `chimera://` in Safari's address bar and press Enter.
-
-   ### Electra is absent (on iPads)
-   iPads have uicache issues with most jailbreaking tools. To open Electra, enter `electra://` in Safari's address bar and press Enter.
 
    ### Terminal is absent (on iPads)
    iPads have uicache issues with most jailbreaking tools. To open Terminal, enter `mterminal://` in Safari's address bar and press Enter.  
