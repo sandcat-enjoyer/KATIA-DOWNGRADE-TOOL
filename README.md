@@ -88,14 +88,8 @@ We back up the `activation_records` from your main OS prior to downgrading your 
 
    ### Deep sleep, device won't turn on after locking it, have to reboot.
    The issue that causes deep sleep is unfortunately **unfixable**. There is, however, a workaround to this:
-      
-      1. Add [this repo](julioverne.github.io) to Cydia after setup
-      
-      2. Search for the tweak Fiona
-      
-      3. Install it
-      
-      4. Profit
+
+   Install the tweak "Insomnia" from BigBoss or "Fiona" from the repo https://julioverne.github.io
       
    *Note: This does slightly affect battery life due to the way it works. You probably aren't using this script for battery life though, are you.
 
