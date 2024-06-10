@@ -3086,7 +3086,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                     "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'rm -rf /mnt5/mobile/Library/Caches/com.apple.MobileGestalt.plist'
                 fi
                 "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/Meridian.app.tar.gz root@localhost:/mnt4/
-                "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'tar --preserve-permissions -xzvf /mnt4/Meridian.app.tar.gz -C /mnt4/Applications' 2> /dev/null
+                "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'tar --preserve-permissions -xzvf /mnt4/Meridian.app.tar.gz -C /mnt4' 2> /dev/null
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'rm -rf /mnt4/Meridian.app.tar.gz' 2> /dev/null
                 if [[ ! "$deviceid" == "iPad"* ]]; then
                     "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/UnlimFileManager.app.tar.gz root@localhost:/mnt4/
@@ -3100,6 +3100,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                 "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 root@localhost:/mnt4/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64 "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.raw 2> /dev/null
                 "$bin"/dsc64patcher "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.raw "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.patched -103
                 "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.patched root@localhost:/mnt4/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64 2> /dev/null
+                rm "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64*
                 #"$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'cp /mnt4/usr/libexec/keybagd /mnt4/usr/libexec/keybagd.bak' 2> /dev/null
                 #"$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/fixkeybag root@localhost:/mnt4/usr/libexec/keybagd 2> /dev/null
             elif [[ "$version" == "11."* ]]; then
@@ -3155,10 +3156,12 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                     "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 root@localhost:/mnt4/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64 "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.raw 2> /dev/null
                     "$bin"/dsc64patcher "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.raw "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.patched -113
                     "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.patched root@localhost:/mnt4/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64 2> /dev/null
+                    rm "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64*
                 else
                     "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 root@localhost:/mnt4/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64 "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.raw 2> /dev/null
                     "$bin"/dsc64patcher "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.raw "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.patched -11
                     "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.patched root@localhost:/mnt4/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64 2> /dev/null
+                    rm "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64*
                     if [[ -e "$dir"/$deviceid/0.0/activation_records/activation_record.plist ]]; then
                         # [*] Alert
                         # [*] If you boot now, you will get stuck at the \"screen time\" step in Setup.app
@@ -3219,6 +3222,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                 "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 root@localhost:/mnt4/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64 "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.raw 2> /dev/null
                 "$bin"/dsc64patcher "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.raw "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.patched -12
                 "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.patched root@localhost:/mnt4/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64 2> /dev/null
+                rm "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64*
                 if [[ -e "$dir"/$deviceid/0.0/activation_records/activation_record.plist ]]; then
                     # [*] Alert
                     # [*] If you boot now, you will get stuck at the \"screen time\" step in Setup.app
@@ -3508,7 +3512,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                     "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'rm -rf /mnt2/mobile/Library/Caches/com.apple.MobileGestalt.plist'
                 fi
                 "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/Meridian.app.tar.gz root@localhost:/mnt1/
-                "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'tar --preserve-permissions -xzvf /mnt1/Meridian.app.tar.gz -C /mnt1/Applications' 2> /dev/null
+                "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'tar --preserve-permissions -xzvf /mnt1/Meridian.app.tar.gz -C /mnt1' 2> /dev/null
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'rm -rf /mnt1/Meridian.app.tar.gz' 2> /dev/null
                 if [[ ! "$deviceid" == "iPad"* ]]; then
                     "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/UnlimFileManager.app.tar.gz root@localhost:/mnt1/
@@ -3537,6 +3541,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                 "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 root@localhost:/mnt1/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64 "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.raw 2> /dev/null
                 "$bin"/dsc64patcher "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.raw "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.patched -10
                 "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.patched root@localhost:/mnt1/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64 2> /dev/null
+                rm "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64*
             else
                 "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/data_ark.plist_ios7.tar root@localhost:/mnt2/ 2> /dev/null
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "tar -xvf /mnt2/data_ark.plist_ios7.tar -C /mnt2" 2> /dev/null
@@ -3622,6 +3627,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                 "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 root@localhost:/mnt1/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64 "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.raw 2> /dev/null
                 "$bin"/dsc64patcher "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.raw "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.patched -8
                 "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.patched root@localhost:/mnt1/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64 2> /dev/null
+                rm "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64*
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/usr/bin/chflags schg /mnt2/root/Library/Lockdown/data_ark.plist"
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/usr/bin/chflags schg /mnt2/mobile/Library/mad/data_ark.plist"
                 #"$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'cp /mnt1/usr/libexec/keybagd /mnt1/usr/libexec/keybagd.bak' 2> /dev/null
@@ -3654,6 +3660,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                 "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 root@localhost:/mnt1/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64 "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.raw 2> /dev/null
                 "$bin"/dsc64patcher "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.raw "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.patched -7
                 "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.patched root@localhost:/mnt1/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64 2> /dev/null
+                rm "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64*
             elif [[ "$version" == "9."* ]]; then
                 if [[ "$appleinternal" == 1 ]]; then
                     "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/AppleInternal.tar root@localhost:/mnt1/ 2> /dev/null
@@ -3685,11 +3692,12 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                 fi
                 if [[ "$version" == "9.3"* ]]; then
                     "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/NvwaStone.app.tar.gz root@localhost:/mnt1/
-                    "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "tar -xzvf /mnt1/NvwaStone.app.tar.gz -C /mnt1/Applications/"
+                    "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "tar -xzvf /mnt1/NvwaStone.app.tar.gz -C /mnt1"
                 fi
                 "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 root@localhost:/mnt1/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64 "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.raw 2> /dev/null
                 "$bin"/dsc64patcher "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.raw "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.patched -9
                 "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.patched root@localhost:/mnt1/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64 2> /dev/null
+                rm "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64*
                 "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 root@localhost:/mnt1/usr/libexec/lockdownd "$dir"/$deviceid/$cpid/$version/lockdownd.raw 2> /dev/null
                 "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 root@localhost:/mnt1/System/Library/PrivateFrameworks/MobileActivation.framework/Support/mobactivationd "$dir"/$deviceid/$cpid/$version/mobactivationd.raw 2> /dev/null
             fi
@@ -4098,7 +4106,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                     "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/data_ark.plis_ root@localhost:$dataarkplist
                     if [[ "$version" == "10."* ]]; then
                         "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/Meridian.app.tar.gz root@localhost:/mnt1/
-                        "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'tar --preserve-permissions -xzvf /mnt1/Meridian.app.tar.gz -C /mnt1/Applications' 2> /dev/null
+                        "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'tar --preserve-permissions -xzvf /mnt1/Meridian.app.tar.gz -C /mnt1' 2> /dev/null
                         "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'rm -rf /mnt1/Meridian.app.tar.gz' 2> /dev/null
                     fi
                 else
@@ -4120,7 +4128,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                     "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/data_ark.plis_ root@localhost:$dataarkplist
                     if [[ "$version" == "10."* ]]; then
                         "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/Meridian.app.tar.gz root@localhost:/mnt4/
-                        "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'tar --preserve-permissions -xzvf /mnt4/Meridian.app.tar.gz -C /mnt4/Applications' 2> /dev/null
+                        "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'tar --preserve-permissions -xzvf /mnt4/Meridian.app.tar.gz -C /mnt4' 2> /dev/null
                         "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'rm -rf /mnt4/Meridian.app.tar.gz' 2> /dev/null
                     fi
                 fi
@@ -4515,7 +4523,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
             fi
             if [[ "$version" == "10.3"* ]]; then
                 "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/Meridian.app.tar.gz root@localhost:/mnt4/
-                "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'tar --preserve-permissions -xzvf /mnt4/Meridian.app.tar.gz -C /mnt4/Applications' 2> /dev/null
+                "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'tar --preserve-permissions -xzvf /mnt4/Meridian.app.tar.gz -C /mnt4' 2> /dev/null
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'rm -rf /mnt4/Meridian.app.tar.gz' 2> /dev/null
                 if [[ ! "$deviceid" == "iPad"* ]]; then
                     "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/UnlimFileManager.app.tar.gz root@localhost:/mnt4/
@@ -4525,7 +4533,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                 fi
             elif [[ "$version" == "10."* ]]; then
                 "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/Meridian.app.tar.gz root@localhost:/mnt1/
-                "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'tar --preserve-permissions -xzvf /mnt1/Meridian.app.tar.gz -C /mnt1/Applications' 2> /dev/null
+                "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'tar --preserve-permissions -xzvf /mnt1/Meridian.app.tar.gz -C /mnt1' 2> /dev/null
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'rm -rf /mnt1/Meridian.app.tar.gz' 2> /dev/null
                 if [[ ! "$deviceid" == "iPad"* ]]; then
                     "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/UnlimFileManager.app.tar.gz root@localhost:/mnt1/

@@ -11,7 +11,15 @@
 
 ## IF YOUR DEVICE SUPPORTS [LEGACY-IOS-KIT](https://github.com/LukeZGD/Legacy-iOS-Kit), YOU SHOULD REALLY USE THAT OVER THIS.
 
-# Chart of compatibility
+## Support
+
+No support
+
+Do not expect updates to this anymore, especially with all that has happened surrounding this tool
+
+It may be better for someone to rewrite the entire thing, and/or just create or use another tool
+
+## Chart of compatibility
 
 | iOS         | App Store | Cydia       | Tweaks    | Respring| Cellular | Sideloadly | iTunes     |
 |-------------|-----------|-------------|-----------|---------|----------|------------|------------|
@@ -51,6 +59,8 @@ It should then begin the process of downgrading your device. Please follow the o
 
 If you downgraded to iOS 9 or later, please use the jailbreak app on your home screen to begin jailbreaking your device.
 
+For iOS 7 and 8, see below troubleshooting steps for jailbreaking.
+
 ## Subsequent runs after downgrade is finished
 
 Connect device in DFU mode
@@ -74,14 +84,6 @@ At least 20GB of free space on your computer
 USB Type-A port and Lightning cable. USB Type-C ports will **NOT** work with this script. If you're using a Mac that only has a USB-C port (such as 12" MacBooks, and late Intel MacBook Airs) a dongle/dock with a USB-A port should work just fine with a standard USB-A to Lightning cable.
 
 Working iDevice: The script has to backup `apticket.der`, `sep-firmware.img4`, `Baseband`, and `keybags` from your device before you can downgrade to an older iOS version.
-
-## Support
-
-No support
-
-Do not expect any more updates, especially with all that has happened surrounding this tool
-
-It may be better to rewrite the entire thing and/or create/use another tool
 
 ## Setup.app bypass
 
@@ -109,6 +111,13 @@ We back up the `activation_records` from your main OS prior to downgrading your 
 
    Be careful when doing this since *anyone* can connect to the open network you created. We are not responsible for **any** damages caused by doing this.
 
+   ### Jailbreak/tweaks and other apps do not work (iOS 7 and 8)
+   Open Terminal, type `su` -> `alpine` (input is invisible but still being typed) -> `reload`
+
+   This is to be done every (re)boot
+
+   It may fail the first time due to a malloc error, just close out of Terminal and re open the app. Do the same process over again and it should respring the device. All the apps on your device should now be working properly if you follow these steps.
+
    ### Safari does not work (iOS 10)
    Use the FileManager app on the home screen instead. It is a drop in replacement for Safari, and has a built in download manager also. Until further notice, this does not work on iPads, due to it being missing from the home screen and not being able to launch the app from Safari. This may be fixed at a later date. Sorry for the inconvenience. As a workaround, for iPads only, you can sign into App Store and download https://apps.apple.com/us/app/unlimfilemanager/id456683394 from there.
 
@@ -124,13 +133,6 @@ We back up the `activation_records` from your main OS prior to downgrading your 
    ### Terminal is absent (on iPads)
    iPads have uicache issues with most jailbreaking tools. To open Terminal, enter `mterminal://` in Safari's address bar and press Enter.  
 
-   ### Jailbreak/tweaks and other apps do not work (iOS 7 and 8)
-   Open Terminal, type `su` -> `alpine` (input is invisible but still being typed) -> `reload`
-
-   This is to be done every (re)boot
-
-   It may fail the first time due to a malloc error, just close out of Terminal and re open the app. Do the same process over again and it should respring the device. All the apps on your device should now be working properly if you follow these steps.
- 
 ## Credits
 
 - [PsychoTea](https://github.com/PsychoTea/) for [MeridianJB](https://github.com/PsychoTea/MeridianJB/) which we use for iOS 10.3.3 downgrades
