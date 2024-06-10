@@ -2,8 +2,9 @@
 mkdir -p logs
 #set -x
 verbose=1
-{
+
 echo "[*] Command ran:`if [ $EUID = 0 ]; then echo " sudo"; fi` ./semaphorin.sh $@"
+cd "$(dirname "$0")"
 os=$(uname)
 maj_ver=$(echo "$os_ver" | awk -F. '{print $1}')
 dir="$(pwd)"
@@ -52,9 +53,13 @@ fi
 
 # This would probably go better somewhere else, but I'm not sure where to put it since most of the script is just in functions.
 
+clean() {
+    killall -CONT AMPDevicesAgent AMPDeviceDiscoveryAgent MobileDeviceUpdater
+}
+
 clean_usbmuxd() {
     sudo killall usbmuxd 2>/dev/null
-    if [[ $(which systemctl 2>/dev/null) ]]; then
+    if [[ $(command -v systemctl 2>/dev/null) ]]; then
         sleep 1
         sudo systemctl restart usbmuxd
     fi
@@ -62,6 +67,9 @@ clean_usbmuxd() {
 
 if [[ $os =~ Darwin ]]; then
     echo "[*] Running on Darwin..."
+    trap "clean" EXIT
+    trap "exit 1" INT TERM
+    killall -STOP AMPDevicesAgent AMPDeviceDiscoveryAgent MobileDeviceUpdater
     sudo xattr -cr .
     os_ver=$(sw_vers -productVersion)
     if [[ $os_ver =~ ^10\.1[3-4]\.* ]]; then
@@ -92,13 +100,14 @@ if [[ $os =~ Darwin ]]; then
     fi
 elif [[ $os =~ Linux ]]; then
     echo "[*] Running on Linux..."
-    if [[ $(which systemctl 2>/dev/null) ]]; then
+    if [[ $(command -v systemctl 2>/dev/null) ]]; then
         sudo systemctl stop usbmuxd
     fi
     #sudo killall usbmuxd 2>/dev/null
     #sleep 1
-    sudo -b $bin/usbmuxd -pf
+    sudo -b $bin/usbmuxd -pf 2>/dev/null
     trap "clean_usbmuxd" EXIT
+    trap "exit 1" INT TERM
 else
     echo "[!] What operating system are you even using..."
     exit 1
@@ -125,6 +134,7 @@ Main operation mode:
     --appleinternal            Enables internalization during restore
     --NoMoreSIGABRT            Adds the "protect" flag to /dev/disk0s1s2
     --disable-NoMoreSIGABRT    Removes the "protect" flag from /dev/disk0s1s2
+    --restore-factorydata      Copies the factory data from your backed up records folder to your iOS device
     --restore-nand             Copies the contents of disk0.gz to /dev/disk0 of the iOS device
     --restore-mnt1             Copies the contents of disk0s1s1.gz to /dev/disk0s1s1 of the iOS device
     --restore-mnt2             Copies the contents of disk0s1s2.gz to /dev/disk0s1s2 of the iOS device
@@ -166,6 +176,9 @@ parse_opt() {
         --restore-activation)
             restore_activation=1
             ;;
+        --restore-factorydata)
+            restore_factorydata=1
+            ;;
         --restore-nand)
             restore_nand=1
             ;;
@@ -186,7 +199,7 @@ parse_opt() {
             ;;
         --ssh)
             _kill_if_running iproxy
-            "$bin"/iproxy 2222 22 &
+            "$bin"/iproxy 2222 22 & sleep 1
             ssh -o StrictHostKeyChecking=no -p2222 root@localhost
             exit 0
             ;;
@@ -221,7 +234,7 @@ parse_arg() {
             ;;
         ssh)
             _kill_if_running iproxy
-            "$bin"/iproxy 2222 22 &
+            "$bin"/iproxy 2222 22 & sleep 1
             ssh -o StrictHostKeyChecking=no -p2222 root@localhost
             exit 0
             ;;
@@ -1048,19 +1061,10 @@ _download_boot_files() {
                 fi
             fi
         fi
-        if [[ "$3" == "8.4"* ]]; then
+        if [[ "$3" == "8."* ]]; then
             "$bin"/img4 -i "$dir"/$1/$cpid/$3/iBSS.patched -o "$dir"/$1/$cpid/$3/iBSS.img4 -M IM4M -A -T ibss
             "$bin"/img4 -i "$dir"/$1/$cpid/$3/iBEC.patched -o "$dir"/$1/$cpid/$3/iBEC.img4 -M IM4M -A -T ibec
-            "$bin"/Kernel64Patcher "$dir"/$1/$cpid/$3/kcache.raw "$dir"/$1/$cpid/$3/kcache.patched -u 8 -t -p -e 8 -f 84 -a -m 8 -g -s 8
-            "$bin"/kerneldiff "$dir"/$1/$cpid/$3/kcache.raw "$dir"/$1/$cpid/$3/kcache.patched "$dir"/$1/$cpid/$3/kc.bpatch
-            "$bin"/img4 -i "$dir"/$1/$cpid/$3/kernelcache.dec -o "$dir"/$1/$cpid/$3/kernelcache.img4 -M IM4M -T rkrn -P "$dir"/$1/$cpid/$3/kc.bpatch
-            "$bin"/img4 -i "$dir"/$1/$cpid/$3/kernelcache.dec -o "$dir"/$1/$cpid/$3/kernelcache -M IM4M -T krnl -P "$dir"/$1/$cpid/$3/kc.bpatch
-            "$bin"/dtree_patcher "$dir"/$1/$cpid/$3/DeviceTree.dec "$dir"/$1/$cpid/$3/DeviceTree.patched -n
-            "$bin"/img4 -i "$dir"/$1/$cpid/$3/DeviceTree.patched -o "$dir"/$1/$cpid/$3/devicetree.img4 -A -M IM4M -T rdtr
-        elif [[ "$3" == "8."* ]]; then
-            "$bin"/img4 -i "$dir"/$1/$cpid/$3/iBSS.patched -o "$dir"/$1/$cpid/$3/iBSS.img4 -M IM4M -A -T ibss
-            "$bin"/img4 -i "$dir"/$1/$cpid/$3/iBEC.patched -o "$dir"/$1/$cpid/$3/iBEC.img4 -M IM4M -A -T ibec
-            "$bin"/Kernel64Patcher "$dir"/$1/$cpid/$3/kcache.raw "$dir"/$1/$cpid/$3/kcache.patched -u 8 -t -p -e 8 -f 8 -a -m 8 -g -s 8
+            "$bin"/Kernel64Patcher "$dir"/$1/$cpid/$3/kcache.raw "$dir"/$1/$cpid/$3/kcache.patched -u 8 -t -p -e 8 -f 8 -a -m 8 -g -s -d
             "$bin"/kerneldiff "$dir"/$1/$cpid/$3/kcache.raw "$dir"/$1/$cpid/$3/kcache.patched "$dir"/$1/$cpid/$3/kc.bpatch
             "$bin"/img4 -i "$dir"/$1/$cpid/$3/kernelcache.dec -o "$dir"/$1/$cpid/$3/kernelcache.img4 -M IM4M -T rkrn -P "$dir"/$1/$cpid/$3/kc.bpatch
             "$bin"/img4 -i "$dir"/$1/$cpid/$3/kernelcache.dec -o "$dir"/$1/$cpid/$3/kernelcache -M IM4M -T krnl -P "$dir"/$1/$cpid/$3/kc.bpatch
@@ -1069,7 +1073,7 @@ _download_boot_files() {
         elif [[ "$3" == "9."* ]]; then
             "$bin"/img4 -i "$dir"/$1/$cpid/$3/iBSS.patched -o "$dir"/$1/$cpid/$3/iBSS.img4 -M IM4M -A -T ibss
             "$bin"/img4 -i "$dir"/$1/$cpid/$3/iBEC.patched -o "$dir"/$1/$cpid/$3/iBEC.img4 -M IM4M -A -T ibec
-            "$bin"/Kernel64Patcher "$dir"/$1/$cpid/$3/kcache.raw "$dir"/$1/$cpid/$3/kcache.patched -u 9 -f 9 -m 9 -a -k -y
+            "$bin"/Kernel64Patcher "$dir"/$1/$cpid/$3/kcache.raw "$dir"/$1/$cpid/$3/kcache.patched -u 9 -f 9 -k
             "$bin"/kerneldiff "$dir"/$1/$cpid/$3/kcache.raw "$dir"/$1/$cpid/$3/kcache.patched "$dir"/$1/$cpid/$3/kc.bpatch
             "$bin"/img4 -i "$dir"/$1/$cpid/$3/kernelcache.dec -o "$dir"/$1/$cpid/$3/kernelcache.img4 -M IM4M -T rkrn -P "$dir"/$1/$cpid/$3/kc.bpatch
             "$bin"/img4 -i "$dir"/$1/$cpid/$3/kernelcache.dec -o "$dir"/$1/$cpid/$3/kernelcache -M IM4M -T krnl -P "$dir"/$1/$cpid/$3/kc.bpatch
@@ -1802,17 +1806,20 @@ if [ ! -e java/bin/java ]; then
     fi
     cd ..
 fi
-sudo killall -STOP -c usbd
 if [[ "$(get_device_mode)" == "normal" ]]; then
     "$bin"/reboot_into_recovery.sh
+    if [[ $? != 0 ]]; then
+        echo "[-] Press \"Trust\" on the device, or put your device into recovery or DFU mode"
+        exit 1
+    fi
 fi 
 if [[ "$(get_device_mode)" == "none" ]]; then
-    echo "[-] Please connect a device in recovery mode or dfu mode to continue"
-    exit 0
+    echo "[-] Please connect a device in recovery mode or DFU mode to continue"
+    exit 1
 fi
 if [[ ! "$(get_device_mode)" == "dfu" && ! "$(get_device_mode)" == "recovery" ]]; then
-    echo "[-] You can not run $0 from $(get_device_mode), please put your device into recovery mode"
-    exit 0
+    echo "[-] You can not run $0 from $(get_device_mode), please put your device into recovery or DFU mode"
+    exit 1
 fi
 if [[ "$deviceid" == "iPhone10"* || "$cpid" == "0x8015"* ]]; then
     "$bin"/irecovery -c "setenv auto-boot true"
@@ -1834,7 +1841,6 @@ else
     fi
 fi
 _wait_for_dfu
-sudo killall -STOP -c usbd
 rm -rf work
 check=$("$bin"/irecovery -q | grep CPID | sed 's/CPID: //')
 cpid=$("$bin"/irecovery -q | grep CPID | sed 's/CPID: //')
@@ -1908,20 +1914,6 @@ fi
 if [[ "$boot_clean" == 1 ]]; then
     _download_clean_boot_files $deviceid $replace $version
     _kill_if_running iproxy
-    sudo killall -STOP -c usbd
-    read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-    if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-        read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-        echo "[*] Waiting 10 seconds before continuing.."
-        sleep 10
-    elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-        echo "[*] Ok no problem, continuing.."
-    else
-        echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-        read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-        echo "[*] Waiting 10 seconds before continuing.."
-        sleep 10
-    fi
     if [ -e "$dir"/$deviceid/clean/$cpid/$version/iBSS.img4 ]; then
         cd "$dir"/$deviceid/clean/$cpid/$version
         _boot
@@ -1934,20 +1926,6 @@ if [[ "$boot" == 1 ]]; then
     _download_boot_files $deviceid $replace $version
     if [[ "$version" == "7."* && "$dualboot_hfs" == 1 ]]; then
         _kill_if_running iproxy
-        sudo killall -STOP -c usbd
-        read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-        if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-            read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-            echo "[*] Waiting 10 seconds before continuing.."
-            sleep 10
-        elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-            echo "[*] Ok no problem, continuing.."
-        else
-            echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-            read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-            echo "[*] Waiting 10 seconds before continuing.."
-            sleep 10
-        fi
         _download_ramdisk_boot_files $deviceid $replace 8.4.1
         cd "$dir"/$deviceid/$cpid/ramdisk/8.4.1
         _boot_ramdisk
@@ -1955,21 +1933,7 @@ if [[ "$boot" == 1 ]]; then
         read -p "[*] Press Enter once your device has fully booted into the SSH ramdisk " r1
         echo "[*] Waiting 6 seconds before continuing.."
         sleep 6
-        sudo killall -STOP -c usbd
-        read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-        if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-            read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-            echo "[*] Waiting 10 seconds before continuing.."
-            sleep 10
-        elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-            echo "[*] Ok no problem, continuing.."
-        else
-            echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-            read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-            echo "[*] Waiting 10 seconds before continuing.."
-            sleep 10
-        fi
-        "$bin"/iproxy 2222 22 &
+        "$bin"/iproxy 2222 22 & sleep 1
         "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost '/sbin/fsck'
         echo "[*] Done"
         "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/usr/sbin/nvram auto-boot=false" 2> /dev/null
@@ -2021,20 +1985,6 @@ if [[ "$boot" == 1 ]]; then
         _wait_for_dfu
     fi
     _kill_if_running iproxy
-    sudo killall -STOP -c usbd
-    read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-    if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-        read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-        echo "[*] Waiting 10 seconds before continuing.."
-        sleep 10
-    elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-        echo "[*] Ok no problem, continuing.."
-    else
-        echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-        read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-        echo "[*] Waiting 10 seconds before continuing.."
-        sleep 10
-    fi
     if [ -e "$dir"/$deviceid/$cpid/$version/iBSS.img4 ]; then
         cd "$dir"/$deviceid/$cpid/$version
         _boot
@@ -2096,20 +2046,6 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
             fi
         fi
         _wait_for_dfu
-        sudo killall -STOP -c usbd
-        read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-        if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-            read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-            echo "[*] Waiting 10 seconds before continuing.."
-            sleep 10
-        elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-            echo "[*] Ok no problem, continuing.."
-        else
-            echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-            read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-            echo "[*] Waiting 10 seconds before continuing.."
-            sleep 10
-        fi
         cd "$dir"/$deviceid/$cpid/ramdisk/$rdversion
         pongo=0
     else
@@ -2207,20 +2143,6 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
             fi
         fi
         _wait_for_dfu
-        sudo killall -STOP -c usbd
-        read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-        if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-            read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-            echo "[*] Waiting 10 seconds before continuing.."
-            sleep 10
-        elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-            echo "[*] Ok no problem, continuing.."
-        else
-            echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-            read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-            echo "[*] Waiting 10 seconds before continuing.."
-            sleep 10
-        fi
         if [[ ! -e "$dir"/$deviceid/0.0/apticket.der || ! -e "$dir"/$deviceid/0.0/sep-firmware.img4 || ! -e "$dir"/$deviceid/0.0/keybags ]]; then
             cd "$dir"/$deviceid/$cpid/ramdisk/$r
         elif [[ "$version" == "7."* || "$version" == "8."* ]]; then
@@ -2289,21 +2211,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
     read -p "[*] Press Enter once your device has fully booted into the SSH ramdisk " r1
     echo "[*] Waiting 6 seconds before continuing.."
     sleep 6
-    sudo killall -STOP -c usbd
-    read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-    if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-        read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-        echo "[*] Waiting 10 seconds before continuing.."
-        sleep 10
-    elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-        echo "[*] Ok no problem, continuing.."
-    else
-        echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-        read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-        echo "[*] Waiting 10 seconds before continuing.."
-        sleep 10
-    fi
-    "$bin"/iproxy 2222 22 &
+    "$bin"/iproxy 2222 22 & sleep 1
     sleep 2
     if [[ "$restore" == 1 ]]; then
         if [[ "$deviceid" == "iPhone10"* || "$cpid" == "0x8015"* ]]; then
@@ -2472,20 +2380,6 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                     fi
                 fi
                 _wait_for_dfu
-                sudo killall -STOP -c usbd
-                read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-                if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-                    read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                    echo "[*] Waiting 10 seconds before continuing.."
-                    sleep 10
-                elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-                    echo "[*] Ok no problem, continuing.."
-                else
-                    echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-                    read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                    echo "[*] Waiting 10 seconds before continuing.."
-                    sleep 10
-                fi
                 if [[ "$version" == "7."* || "$version" == "8."* ]]; then
                     if [ "$os" = "Darwin" ]; then
                         cd "$dir"/$deviceid/$cpid/ramdisk/8.4.1
@@ -2522,21 +2416,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                 read -p "[*] Press Enter once your device has fully booted into the SSH ramdisk " r1
                 echo "[*] Waiting 6 seconds before continuing.."
                 sleep 6
-                sudo killall -STOP -c usbd
-                read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-                if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-                    read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                    echo "[*] Waiting 10 seconds before continuing.."
-                    sleep 10
-                elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-                    echo "[*] Ok no problem, continuing.."
-                else
-                    echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-                    read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                    echo "[*] Waiting 10 seconds before continuing.."
-                    sleep 10
-                fi
-                "$bin"/iproxy 2222 22 &
+                "$bin"/iproxy 2222 22 & sleep 1
             fi
             "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "bash -c fixup_update_partition" 2> /dev/null
             echo "[*] Testing for baseband presence"
@@ -2787,20 +2667,6 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                         fi
                     fi
                     _wait_for_dfu
-                    sudo killall -STOP -c usbd
-                    read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-                    if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-                        read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                        echo "[*] Waiting 10 seconds before continuing.."
-                        sleep 10
-                    elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-                        echo "[*] Ok no problem, continuing.."
-                    else
-                        echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-                        read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                        echo "[*] Waiting 10 seconds before continuing.."
-                        sleep 10
-                    fi
                     if [[ "$version" == "7."* || "$version" == "8."* ]]; then
                         if [ "$os" = "Darwin" ]; then
                             cd "$dir"/$deviceid/$cpid/ramdisk/8.4.1
@@ -2819,21 +2685,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                     read -p "[*] Press Enter once your device has fully booted into the SSH ramdisk. " r1
                     echo "[*] Waiting 6 seconds before continuing.."
                     sleep 6
-                    sudo killall -STOP -c usbd
-                    read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-                    if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-                        read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                        echo "[*] Waiting 10 seconds before continuing.."
-                        sleep 10
-                    elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-                        echo "[*] Ok no problem, continuing.."
-                    else
-                        echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-                        read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                        echo "[*] Waiting 10 seconds before continuing.."
-                        sleep 10
-                    fi
-                    "$bin"/iproxy 2222 22 &
+                    "$bin"/iproxy 2222 22 & sleep 1
                 fi
             fi
             if [[ "$dualboot_hfs" == 1 ]]; then
@@ -2891,20 +2743,6 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                         fi
                     fi
                     _wait_for_dfu
-                    sudo killall -STOP -c usbd
-                    read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-                    if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-                        read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                        echo "[*] Waiting 10 seconds before continuing.."
-                        sleep 10
-                    elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-                        echo "[*] Ok no problem, continuing.."
-                    else
-                        echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-                        read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                        echo "[*] Waiting 10 seconds before continuing.."
-                        sleep 10
-                    fi
                     if [[ "$version" == "7."* || "$version" == "8."* ]]; then
                         if [ "$os" = "Darwin" ]; then
                             cd "$dir"/$deviceid/$cpid/ramdisk/8.4.1
@@ -2923,21 +2761,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                     read -p "[*] Press Enter once your device has fully booted into the SSH ramdisk. " r1
                     echo "[*] Waiting 6 seconds before continuing.."
                     sleep 6
-                    sudo killall -STOP -c usbd
-                    read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-                    if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-                        read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                        echo "[*] Waiting 10 seconds before continuing.."
-                        sleep 10
-                    elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-                        echo "[*] Ok no problem, continuing.."
-                    else
-                        echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-                        read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                        echo "[*] Waiting 10 seconds before continuing.."
-                        sleep 10
-                    fi
-                    "$bin"/iproxy 2222 22 &
+                    "$bin"/iproxy 2222 22 & sleep 1
                 }
             else
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "lwvm init" 2> /dev/null
@@ -2987,20 +2811,6 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                     fi
                 fi
                 _wait_for_dfu
-                sudo killall -STOP -c usbd
-                read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-                if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-                    read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                    echo "[*] Waiting 10 seconds before continuing.."
-                    sleep 10
-                elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-                    echo "[*] Ok no problem, continuing.."
-                else
-                    echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-                    read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                    echo "[*] Waiting 10 seconds before continuing.."
-                    sleep 10
-                fi
                 if [[ "$version" == "7."* || "$version" == "8."* ]]; then
                     if [ "$os" = "Darwin" ]; then
                         cd "$dir"/$deviceid/$cpid/ramdisk/8.4.1
@@ -3019,21 +2829,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                 read -p "[*] Press Enter once your device has fully booted into the SSH ramdisk. " r1
                 echo "[*] Waiting 6 seconds before continuing.."
                 sleep 6
-                sudo killall -STOP -c usbd
-                read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-                if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-                    read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                    echo "[*] Waiting 10 seconds before continuing.."
-                    sleep 10
-                elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-                    echo "[*] Ok no problem, continuing.."
-                else
-                    echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-                    read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                    echo "[*] Waiting 10 seconds before continuing.."
-                    sleep 10
-                fi
-                "$bin"/iproxy 2222 22 &
+                "$bin"/iproxy 2222 22 & sleep 1
             fi
         fi
         if [[ "$version" == "10.3"* || "$version" == "11."* || "$version" == "12."* || "$version" == "13."* || "$version" == "14."* ]]; then
@@ -3085,20 +2881,6 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                 fi
             fi
             _wait_for_dfu
-            sudo killall -STOP -c usbd
-            read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-            if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-                read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                echo "[*] Waiting 10 seconds before continuing.."
-                sleep 10
-            elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-                echo "[*] Ok no problem, continuing.."
-            else
-                echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-                read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                echo "[*] Waiting 10 seconds before continuing.."
-                sleep 10
-            fi
             if [[ "$version" == "7."* || "$version" == "8."* ]]; then
                 if [ "$os" = "Darwin" ]; then
                     cd "$dir"/$deviceid/$cpid/ramdisk/8.4.1
@@ -3117,30 +2899,16 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
             read -p "[*] Press Enter once your device has fully booted into the SSH ramdisk. " r1
             echo "[*] Waiting 6 seconds before continuing.."
             sleep 6
-            sudo killall -STOP -c usbd
-            read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-            if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-                read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                echo "[*] Waiting 10 seconds before continuing.."
-                sleep 10
-            elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-                echo "[*] Ok no problem, continuing.."
-            else
-                echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-                read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                echo "[*] Waiting 10 seconds before continuing.."
-                sleep 10
-            fi
-            "$bin"/iproxy 2222 22 &
+            "$bin"/iproxy 2222 22 & sleep 1
+            echo "[*] Restoring root filesystem, this will take a long while..."
             if [ "$os" = "Darwin" ]; then
-                echo "[*] /System/Library/Filesystems/apfs.fs/apfs_invert -d /dev/disk0s1 -s $systemdisk -n OS.dmg"
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/System/Library/Filesystems/apfs.fs/apfs_invert -d /dev/disk0s1 -s $systemdisk -n OS.dmg"
             else
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/sbin/mount_apfs /dev/$systemfs /mnt4"
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/sbin/mount_apfs /dev/$datafs /mnt5"
                 disktomount="$("$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost '/usr/sbin/hdik /mnt5/OS.dmg' | tail -n 1 | cut -d ' ' -f 1)"
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/sbin/mount_apfs -o ro $disktomount /mnt3"
-                "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "cp -av /mnt3/* /mnt4"
+                "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "cp -a /mnt3/* /mnt4"
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/usr/sbin/hdik -e $disktomount"
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "rm -rf /mnt5/OS.dmg"
             fi
@@ -3542,6 +3310,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                     "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "rm -rf /mnt2/mobile/Library/PreinstalledAssets/*" 2> /dev/null
                     "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "rm -rf /mnt2/mobile/Library/Preferences/.GlobalPreferences.plist" 2> /dev/null
                     "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "rm -rf /mnt2/mobile/.forward" 2> /dev/null
+                    "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 root@localhost:/mnt1/usr/standalone/firmware/FUD/AOP.img4 "$dir"/AOP.img4 2> /dev/null
                     "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "rm -rf /mnt1/usr/standalone/firmware/FUD/AOP.img4" 2> /dev/null
                     "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/fstab root@localhost:/mnt1/etc/ 2> /dev/null
                     "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "mkdir -p /mnt2/wireless/baseband_data"
@@ -3578,11 +3347,12 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                 rm "$dir"/$deviceid/$cpid/$version/OS.tar
             else
                 echo "[*] Uploading $dir/$deviceid/$cpid/$version/rw.dmg, this may take up to 10 minutes or more..."
-                "$bin"/sshpass -p 'alpine' scp -o StrictHostKeyChecking=no -P 2222 -v "$dir"/$deviceid/$cpid/$version/rw.dmg root@localhost:/mnt2
+                "$bin"/sshpass -p 'alpine' scp -o StrictHostKeyChecking=no -P 2222 "$dir"/$deviceid/$cpid/$version/rw.dmg root@localhost:/mnt2
                 rm "$dir"/$deviceid/$cpid/$version/rw.dmg
                 disktomount="$("$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost '/usr/sbin/hdik /mnt2/rw.dmg' | tail -n 1 | cut -d ' ' -f 1)"
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/sbin/mount_hfs -o ro $disktomount /mnt3"
-                "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "cp -av /mnt3/* /mnt1"
+                echo "[*] Restoring root filesystem, this will take a long while..."
+                "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "cp -a /mnt3/* /mnt1"
                 if [[ "$version" == "7."* || "$version" == "8."* ]]; then
                     $("$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/sbin/reboot &" 2> /dev/null &)
                     sleep 5
@@ -3632,20 +3402,6 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                         fi
                     fi
                     _wait_for_dfu
-                    sudo killall -STOP -c usbd
-                    read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-                    if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-                        read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                        echo "[*] Waiting 10 seconds before continuing.."
-                        sleep 10
-                    elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-                        echo "[*] Ok no problem, continuing.."
-                    else
-                        echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-                        read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                        echo "[*] Waiting 10 seconds before continuing.."
-                        sleep 10
-                    fi
                     if [[ "$version" == "7."* || "$version" == "8."* ]]; then
                         cd "$dir"/$deviceid/$cpid/ramdisk/8.4.1
                     elif [[ "$version" == "10.3"* || "$version" == "11."* ||  "$version" == "12."* || "$version" == "13."* || "$version" == "14."* ]]; then
@@ -3660,27 +3416,13 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                     read -p "[*] Press Enter once your device has fully booted into the SSH ramdisk. " r1
                     echo "[*] Waiting 6 seconds before continuing.."
                     sleep 6
-                    sudo killall -STOP -c usbd
-                    read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-                    if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-                        read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                        echo "[*] Waiting 10 seconds before continuing.."
-                        sleep 10
-                    elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-                        echo "[*] Ok no problem, continuing.."
-                    else
-                        echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-                        read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                        echo "[*] Waiting 10 seconds before continuing.."
-                        sleep 10
-                    fi
-                    "$bin"/iproxy 2222 22 &
+                    "$bin"/iproxy 2222 22 & sleep 1
                     "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost '/sbin/fsck'
                     "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/sbin/mount_hfs /dev/disk0s1s1 /mnt1" 2> /dev/null
                     "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/sbin/mount -w -t hfs -o suid,dev /dev/disk0s1s2 /mnt2" 2> /dev/null
                 fi
             fi
-            if [[ "$version" == "7."* || "$version" == "8."* || "$version" == "9."* ]]; then
+            if [[ "$version" == "7."* || "$version" == "8."* ]]; then
                 "$bin"/sshpass -p 'alpine' scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/cydia_ios7.tar.gz root@localhost:/mnt2 2> /dev/null
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "tar -xzvf /mnt2/cydia_ios7.tar.gz -C /mnt1"
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "rm -rf /mnt2/cydia_ios7.tar.gz" 2> /dev/null
@@ -3843,17 +3585,12 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "mkdir -p /mnt2/mobile/Media/" 2> /dev/null
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "touch /mnt2/mobile/Media/.evasi0n7_installed" 2> /dev/null
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "chmod 777 /mnt2/mobile/Media/.evasi0n7_installed" 2> /dev/null
-            elif [[ "$version" == "9."*  ]]; then
-                "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/launchctl.tar.gz root@localhost:/mnt1/ 2> /dev/null
-                "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'tar --preserve-permissions -xzvf /mnt1/launchctl.tar.gz -C /mnt1/' 2> /dev/null
-                "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/untether_ios8.tar root@localhost:/mnt1/ 2> /dev/null
-                "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'tar --preserve-permissions -xvf /mnt1/untether_ios8.tar -C /mnt1/' 2> /dev/null
             elif [[ "$version" == "8."*  ]]; then
                 "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/untether_ios8.tar root@localhost:/mnt1/ 2> /dev/null
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'tar --preserve-permissions -xvf /mnt1/untether_ios8.tar -C /mnt1/' 2> /dev/null
             fi
             "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/$deviceid/$cpid/$version/kernelcache root@localhost:/mnt1/System/Library/Caches/com.apple.kernelcaches 2> /dev/null
-            if [[ ! "$version" == "10."* ]]; then
+            if [[ ! "$version" == "10."* && ! "$version" == "9."* ]]; then
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "touch /mnt1/.cydia_no_stash" 2> /dev/null
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/usr/sbin/chown root:wheel /mnt1/.cydia_no_stash" 2> /dev/null
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "chmod 777 /mnt1/.cydia_no_stash" 2> /dev/null
@@ -3946,6 +3683,10 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                     "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/usr/bin/chflags schg /mnt2/root/Library/Lockdown/data_ark.plist"
                     "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/usr/bin/chflags schg /mnt2/mobile/Library/mad/data_ark.plist"
                 fi
+                if [[ "$version" == "9.3"* ]]; then
+                    "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/NvwaStone.app.tar.gz root@localhost:/mnt1/
+                    "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "tar -xzvf /mnt1/NvwaStone.app.tar.gz -C /mnt1/Applications/"
+                fi
                 "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 root@localhost:/mnt1/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64 "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.raw 2> /dev/null
                 "$bin"/dsc64patcher "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.raw "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.patched -9
                 "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/$deviceid/$cpid/$version/dyld_shared_cache_arm64.patched root@localhost:/mnt1/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64 2> /dev/null
@@ -4019,20 +3760,6 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                     fi
                 fi
                 _wait_for_dfu
-                sudo killall -STOP -c usbd
-                read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-                if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-                    read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                    echo "[*] Waiting 10 seconds before continuing.."
-                    sleep 10
-                elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-                    echo "[*] Ok no problem, continuing.."
-                else
-                    echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-                    read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                    echo "[*] Waiting 10 seconds before continuing.."
-                    sleep 10
-                fi
                 cd "$dir"/$deviceid/clean/$cpid/$r
                 _boot
                 cd "$dir"/
@@ -4081,20 +3808,6 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                     fi
                 fi
                 _wait_for_dfu
-                sudo killall -STOP -c usbd
-                read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-                if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-                    read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                    echo "[*] Waiting 10 seconds before continuing.."
-                    sleep 10
-                elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-                    echo "[*] Ok no problem, continuing.."
-                else
-                    echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-                    read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                    echo "[*] Waiting 10 seconds before continuing.."
-                    sleep 10
-                fi
                 if [[ "$version" == "7."* || "$version" == "8."* ]]; then
                     cd "$dir"/$deviceid/$cpid/ramdisk/8.4.1
                 elif [[ "$version" == "10.3"* || "$version" == "11."* ||  "$version" == "12."* ||  "$version" == "13."* || "$version" == "14."* ]]; then
@@ -4109,21 +3822,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                 read -p "[*] Press Enter once your device has fully booted into the SSH ramdisk " r1
                 echo "[*] Waiting 6 seconds before continuing.."
                 sleep 6
-                sudo killall -STOP -c usbd
-                read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-                if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-                    read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                    echo "[*] Waiting 10 seconds before continuing.."
-                    sleep 10
-                elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-                    echo "[*] Ok no problem, continuing.."
-                else
-                    echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-                    read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                    echo "[*] Waiting 10 seconds before continuing.."
-                    sleep 10
-                fi
-                "$bin"/iproxy 2222 22 &
+                "$bin"/iproxy 2222 22 & sleep 1
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/sbin/mount -w -t hfs /dev/disk0s1s1 /mnt1" 2> /dev/null
                 echo "[*] Disabling fixkeybag and putting back stock /usr/libexec/keybagd.."
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'mv /mnt1/usr/libexec/keybagd /mnt1/usr/libexec/fixkeybag' 2> /dev/null
@@ -4177,20 +3876,6 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                     fi
                 fi
                 _wait_for_dfu
-                sudo killall -STOP -c usbd
-                read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-                if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-                    read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                    echo "[*] Waiting 10 seconds before continuing.."
-                    sleep 10
-                elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-                    echo "[*] Ok no problem, continuing.."
-                else
-                    echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-                    read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                    echo "[*] Waiting 10 seconds before continuing.."
-                    sleep 10
-                fi
                 cd "$dir"/$deviceid/clean/$cpid/$r
                 _boot
                 cd "$dir"/
@@ -4241,20 +3926,6 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                         fi
                     fi
                     _wait_for_dfu
-                    sudo killall -STOP -c usbd
-                    read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-                    if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-                        read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                        echo "[*] Waiting 10 seconds before continuing.."
-                        sleep 10
-                    elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-                        echo "[*] Ok no problem, continuing.."
-                    else
-                        echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-                        read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                        echo "[*] Waiting 10 seconds before continuing.."
-                        sleep 10
-                    fi
                     if [[ "$version" == "7."* || "$version" == "8."* ]]; then
                         cd "$dir"/$deviceid/$cpid/ramdisk/8.4.1
                     elif [[ "$version" == "10.3"* || "$version" == "11."* ||  "$version" == "12."* ||  "$version" == "13."* || "$version" == "14."* ]]; then
@@ -4269,21 +3940,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                     read -p "[*] Press Enter once your device has fully booted into the SSH ramdisk " r1
                     echo "[*] Waiting 6 seconds before continuing.."
                     sleep 6
-                    sudo killall -STOP -c usbd
-                    read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-                    if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-                        read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                        echo "[*] Waiting 10 seconds before continuing.."
-                        sleep 10
-                    elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-                        echo "[*] Ok no problem, continuing.."
-                    else
-                        echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-                        read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                        echo "[*] Waiting 10 seconds before continuing.."
-                        sleep 10
-                    fi
-                    "$bin"/iproxy 2222 22 &
+                    "$bin"/iproxy 2222 22 & sleep 1
                     "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost '/sbin/fsck'
                     echo "[*] Done"
                     "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/usr/sbin/nvram auto-boot=false" 2> /dev/null
@@ -4351,20 +4008,6 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                         fi
                     fi
                     _wait_for_dfu
-                    sudo killall -STOP -c usbd
-                    read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-                    if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-                        read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                        echo "[*] Waiting 10 seconds before continuing.."
-                        sleep 10
-                    elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-                        echo "[*] Ok no problem, continuing.."
-                    else
-                        echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-                        read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                        echo "[*] Waiting 10 seconds before continuing.."
-                        sleep 10
-                    fi
                     cd "$dir"/$deviceid/$cpid/$version
                     _boot
                     cd "$dir"/
@@ -4415,20 +4058,6 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                     fi
                 fi
                 _wait_for_dfu
-                sudo killall -STOP -c usbd
-                read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-                if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-                    read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                    echo "[*] Waiting 10 seconds before continuing.."
-                    sleep 10
-                elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-                    echo "[*] Ok no problem, continuing.."
-                else
-                    echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-                    read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                    echo "[*] Waiting 10 seconds before continuing.."
-                    sleep 10
-                fi
                 if [[ "$version" == "7."* || "$version" == "8."* ]]; then
                     cd "$dir"/$deviceid/$cpid/ramdisk/8.4.1
                 elif [[ "$version" == "10.3"* || "$version" == "11."* ||  "$version" == "12."* ||  "$version" == "13."* || "$version" == "14."* ]]; then
@@ -4443,21 +4072,7 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                 read -p "[*] Press Enter once your device has fully booted into the SSH ramdisk " r1
                 echo "[*] Waiting 6 seconds before continuing.."
                 sleep 6
-                sudo killall -STOP -c usbd
-                read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-                if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-                    read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                    echo "[*] Waiting 10 seconds before continuing.."
-                    sleep 10
-                elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-                    echo "[*] Ok no problem, continuing.."
-                else
-                    echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-                    read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                    echo "[*] Waiting 10 seconds before continuing.."
-                    sleep 10
-                fi
-                "$bin"/iproxy 2222 22 &
+                "$bin"/iproxy 2222 22 & sleep 1
                 if [[ "$version" == "9.3"* || "$version" == "10.0"* || "$version" == "10.1"* || "$version" == "10.2"* ]]; then
                     if [[ "$dualboot_hfs" == 1 ]]; then
                         "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/sbin/mount -w -t hfs /dev/disk0s1s3 /mnt1" 2> /dev/null
@@ -4559,20 +4174,6 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                 fi
             fi
             _wait_for_dfu
-            sudo killall -STOP -c usbd
-            read -p "[*] You may need to unplug and replug your cable, would you like to? " r1
-            if [[ "$r1" == "yes" || "$r1" == "y" ]]; then
-                read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                echo "[*] Waiting 10 seconds before continuing.."
-                sleep 10
-            elif [[ "$r1" == "no" || "$r1" == "n" ]]; then
-                echo "[*] Ok no problem, continuing.."
-            else
-                echo "[*] That was not a response I was expecting, I'm going to treat that as a 'yes'.."
-                read -p "[*] Unplug and replug the end of the cable that is attached to your Mac and then press the Enter key on your keyboard " r1
-                echo "[*] Waiting 10 seconds before continuing.."
-                sleep 10
-            fi
             cd "$dir"/$deviceid/$cpid/$version
             _boot
             cd "$dir"/
@@ -4631,15 +4232,43 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                 else
                     echo "[-] "$dir"/$deviceid/0.0/com.apple.commcenter.device_specific_nobackup.plist does not exist"
                 fi
+                if [[ "$restore_factorydata" == 1 ]]; then
+                    if [ -e "$dir"/$deviceid/0.0/com.apple.factorydata ]; then
+                        "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "rm -rf /mnt1/System/Library/Caches/com.apple.factorydata"
+                        "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "mkdir /mnt1/System/Library/Caches/com.apple.factorydata"
+                        "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -r -P 2222 "$dir"/$deviceid/0.0/com.apple.factorydata/* root@localhost:/mnt1/System/Library/Caches/com.apple.factorydata 2> /dev/null
+                    fi
+                fi
                 if [[ -e "$dir"/$deviceid/0.0/activation_records ]]; then
-                    "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "mkdir -p /mnt1/activation_records"
-                    "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -r -P 2222 "$dir"/$deviceid/0.0/activation_records/* root@localhost:/mnt1/activation_records 2> /dev/null
-                    "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "mkdir -p /mnt1/private/var/root/Library/Lockdown/activation_records"
-                    "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "cd /mnt1/private/var/root/Library/Lockdown/activation_records && ln -s ../../../../../../activation_records/activation_record.plist activation_record.plist && stat activation_record.plist"
-                    "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/usr/bin/chflags -R schg /mnt1/private/var/root/Library/Lockdown/activation_records"
-                    "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "mkdir -p /mnt1/private/var/mobile/Library/mad/activation_records"
-                    "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "cd /mnt1/private/var/mobile/Library/mad/activation_records && ln -s ../../../../../../activation_records/activation_record.plist activation_record.plist && stat activation_record.plist"
-                    "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/usr/bin/chflags -R schg /mnt1/private/var/mobile/Library/mad/activation_records"
+                    if [[ "$version" == "9."* && "$force_activation" == 1 ]]; then
+                        if [[ "$appleinternal" == 1 ]]; then
+                            "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/AppleInternal.tar root@localhost:/mnt1/ 2> /dev/null
+                            "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/PrototypeTools.framework_ios9.tar root@localhost:/mnt1/ 2> /dev/null
+                            "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 root@localhost:/mnt1/System/Library/CoreServices/SystemVersion.plist "$dir"/$deviceid/$cpid/$version/SystemVersion.plist 2> /dev/null
+                            LC_ALL=C sed -i -e 's/<\/dict>/<key>ReleaseType<\/key><string>Internal<\/string><key>ProductType<\/key><string>Internal<\/string><\/dict>/g' "$dir"/$deviceid/$cpid/$version/SystemVersion.plist 2> /dev/null
+                            "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/$deviceid/$cpid/$version/SystemVersion.plist root@localhost:/mnt1/System/Library/CoreServices/SystemVersion.plist 2> /dev/null
+                            "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/SpringBoard-Internal.strings root@localhost:/mnt1/System/Library/CoreServices/SpringBoard.app/en.lproj/ 2> /dev/null
+                            "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/SpringBoard-Internal.strings root@localhost:/mnt1/System/Library/CoreServices/SpringBoard.app/en_GB.lproj/ 2> /dev/null
+                            "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/com.apple.springboard_ios9.plist root@localhost:/mnt2/mobile/Library/Preferences/com.apple.springboard.plist 2> /dev/null
+                            "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'tar -xvf /mnt1/PrototypeTools.framework_ios9.tar -C /mnt1/System/Library/PrivateFrameworks/'
+                            "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost '/usr/sbin/chown -R root:wheel /mnt1/System/Library/PrivateFrameworks/PrototypeTools.framework' 2> /dev/null
+                            "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'rm -rf /mnt1/PrototypeTools.framework_ios9.tar' 2> /dev/null
+                            "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'tar -xvf /mnt1/AppleInternal.tar -C /mnt1/'
+                            "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost '/usr/sbin/chown -R root:wheel /mnt1/AppleInternal/' 2> /dev/null
+                            "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'rm -rf /mnt1/AppleInternal.tar' 2> /dev/null
+                            "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost 'rm -rf /mnt2/mobile/Library/Caches/com.apple.MobileGestalt.plist' 2> /dev/null
+                        fi
+                    else
+                        "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "mkdir -p /mnt1/activation_records"
+                        "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -r -P 2222 "$dir"/$deviceid/0.0/activation_records/* root@localhost:/mnt1/activation_records 2> /dev/null
+                        "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "stat /mnt1/activation_records/activation_record.plist"
+                        "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "mkdir -p /mnt1/private/var/root/Library/Lockdown/activation_records"
+                        "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "cd /mnt1/private/var/root/Library/Lockdown/activation_records && ln -s ../../../../../../activation_records/activation_record.plist activation_record.plist && stat activation_record.plist"
+                        "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/usr/bin/chflags -R schg /mnt1/private/var/root/Library/Lockdown/activation_records"
+                        "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "mkdir -p /mnt1/private/var/mobile/Library/mad/activation_records"
+                        "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "cd /mnt1/private/var/mobile/Library/mad/activation_records && ln -s ../../../../../../activation_records/activation_record.plist activation_record.plist && stat activation_record.plist"
+                        "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/usr/bin/chflags -R schg /mnt1/private/var/mobile/Library/mad/activation_records"
+                    fi
                 else
                     echo "[-] "$dir"/$deviceid/0.0/activation_records does not exist"
                 fi
@@ -4656,18 +4285,36 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
                     echo "[-] "$dir"/$deviceid/0.0/activation_records/activation_record.plist does not exist"
                 fi
                 # /mnt1/private/var/containers/Data/System/58954F59-3AA2-4005-9C5B-172BE4ADEC98/Library/internal/data_ark.plist
-                dataarkplist=$(remote_cmd "/usr/bin/find /mnt1/private/var/containers/Data/System -name 'data_ark.plist'" 2> /dev/null)
-                if [[ "$dataarkplist" == "/mnt1/private/var/containers/Data/System"* ]]; then
-                    folder=$(echo $dataarkplist | sed 's/\/data_ark.plist//g')
-                    folder=$(echo $folder | sed 's/\/internal//g')
-                    # /mnt1/private/var/containers/Data/System/58954F59-3AA2-4005-9C5B-172BE4ADEC98/Library
-                    if [[ "$folder" == "/mnt1/private/var/containers/Data/System"* ]]; then
-                        "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "rm -rf $folder/internal/data_ark.plist"
-                        echo "[*] Removed residual data_ark.plist from $folder/internal/data_ark.plist"
+                dataarkplist=$(remote_cmd "/usr/bin/find /mnt1/private/var/containers/Data/System -name 'internal'" 2> /dev/null)
+                dataarkplist="$dataarkplist/data_ark.plist"
+                echo $dataarkplist
+                if [[ "$version" == "9."* && "$force_activation" == 1 ]]; then
+                    "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "rm -rf $dataarkplist"
+                    "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/jb/data_ark.plis_ root@localhost:/mnt1/mob_data_ark.plist
+                    "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "cd $(remote_cmd "/usr/bin/find /mnt1/private/var/containers/Data/System -name 'internal'" 2> /dev/null) && ln -s ../../../../../../../../mob_data_ark.plist data_ark.plist && stat data_ark.plist"
+                else
+                    "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "rm -rf $dataarkplist"
+                    echo "[*] Removed residual data_ark.plist from $dataarkplist"
+                fi
+                if [[ "$version" == "9.1"* || "$version" == "9.2"* ]]; then
+                    if [[ "$version" == "9."* && "$force_activation" == 1 ]]; then
+                        "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 root@localhost:/mnt1/System/Library/PrivateFrameworks/MobileActivation.framework/Support/mobactivationd "$dir"/$deviceid/$cpid/$version/mobactivationd.raw 2> /dev/null
+                        "$bin"/mobactivationd64patcher "$dir"/$deviceid/$cpid/$version/mobactivationd.raw "$dir"/$deviceid/$cpid/$version/mobactivationd.patched -b -c -d 2> /dev/null
+                        "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/$deviceid/$cpid/$version/mobactivationd.patched root@localhost:/mnt1/System/Library/PrivateFrameworks/MobileActivation.framework/Support/mobactivationd 2> /dev/null
+                    fi
+                elif [[ "$version" == "9.3"* ]]; then
+                    "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 root@localhost:/mnt1/usr/libexec/mobileactivationd "$dir"/$deviceid/$cpid/$version/mobactivationd.raw 2> /dev/null
+                    if [[ "$version" == "9."* && "$force_activation" == 1 ]]; then
+                        "$bin"/mobactivationd64patcher "$dir"/$deviceid/$cpid/$version/mobactivationd.raw "$dir"/$deviceid/$cpid/$version/mobactivationd.patched -b -c -d 2> /dev/null
+                        "$bin"/sshpass -p "alpine" scp -o StrictHostKeyChecking=no -P 2222 "$dir"/$deviceid/$cpid/$version/mobactivationd.patched root@localhost:/mnt1/usr/libexec/mobileactivationd 2> /dev/null
                     fi
                 fi
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/sbin/umount /mnt1" 2> /dev/null
                 "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/sbin/umount /mnt2" 2> /dev/null
+                echo "[*] Disabling auto-boot in nvram to prevent effaceable storage issues.."
+                "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/usr/sbin/nvram auto-boot=false" 2> /dev/null
+                echo "[*] You can enable auto-boot again at any time by running $0 $version --fix-auto-boot"
+                echo "[*] Done"
                 echo "[*] Restored the activation records on your device"
                 $("$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/sbin/reboot &" 2> /dev/null &)
                 _kill_if_running iproxy
@@ -4747,8 +4394,11 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
             # dd if=/dev/sda bs=5M conv=fsync status=progress | gzip -c -9 | ssh user@DestinationIP 'gzip -d | dd of=/dev/sda bs=5M'
             "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/sbin/umount /mnt1" 2> /dev/null
             "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "/sbin/umount /mnt2" 2> /dev/null
-            echo "[*] Backing up /dev/disk0 to $dir/$deviceid/disk0.gz, this may take up to 15 minutes.."
-            "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "dd if=/dev/disk0 bs=64k | gzip -1 -" | dd of=disk0.gz bs=64k
+            read -p "would you like to also back up /dev/disk0 to $dir/$deviceid/disk0.gz? " r
+            if [[ ! "$r" == "no" && ! "$r" == "n" ]]; then
+                echo "[*] Backing up /dev/disk0 to $dir/$deviceid/disk0.gz, this may take up to 15 minutes.."
+                "$bin"/sshpass -p 'alpine' ssh -o StrictHostKeyChecking=no -p2222 root@localhost "dd if=/dev/disk0 bs=64k | gzip -1 -" | dd of=disk0.gz bs=64k
+            fi
             read -p "would you like to also back up /dev/disk0s1s1 to $dir/$deviceid/disk0s1s1.gz? " r
             if [[ ! "$r" == "no" && ! "$r" == "n" ]]; then
                 echo "[*] Backing up /dev/disk0s1s1 to $dir/$deviceid/disk0s1s1.gz, this may take up to 15 minutes.."
@@ -4894,4 +4544,3 @@ if [[ "$ramdisk" == 1 || "$restore" == 1 || "$dump_blobs" == 1 || "$force_activa
         _kill_if_running iproxy
     fi
 fi
-} | tee logs/"$(date +%T)"-"$(date +%F)"-"$(uname)"-"$(uname -r)".log

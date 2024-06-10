@@ -103,5 +103,9 @@ _wait() {
 }
 
 echo "[*] Switching device into recovery mode..."
+"$dir"/idevicepair pair
+if [[ $? != 0 ]]; then
+    exit 1
+fi
 "$dir"/ideviceenterrecovery $(_info normal UniqueDeviceID)
 _wait recovery

@@ -7,8 +7,9 @@
 
 <h4 align="center"> Uses seprmvr64 by mineek<h4>
 <h6 align="center"> Supports* iOS 7.0.6-12.1 as well as A7-A11 devices </h6>
+<h6 align="center"> This is a fork of the tool with some updates </h6>
 
-# IF YOUR DEVICE SUPPORTS [LEGACY-IOS-KIT](https://github.com/LukeZGD/Legacy-iOS-Kit), YOU SHOULD REALLY USE THAT OVER THIS.
+## IF YOUR DEVICE SUPPORTS [LEGACY-IOS-KIT](https://github.com/LukeZGD/Legacy-iOS-Kit), YOU SHOULD REALLY USE THAT OVER THIS.
 
 # Chart of compatibility
 
@@ -16,11 +17,13 @@
 |-------------|-----------|-------------|-----------|---------|----------|------------|------------|
 | 7.0.6       | &#9745;   | &#9745;     | &#9745;   | &#9745; | &#9745;  | &#9745;    | &#9745;    | 
 | 7.1.2       | &#9745;   | &#9745;     | &#9745;   | &#9745; | &#9745;  | &#9745;    | &#9745;    |
-| 8.2         | &#9745;   | &#9745;     | &#9745;   | &#9745; | &#9744;  | &#9745;    | &#9745;    |
+| 8.4.1       | &#9745;   | &#9745;     | &#9745;   | &#9745; | &#9744;  | &#9745;    | &#9745;    |
 | 9.3         | &#9745;   | &#9745;     | &#9745;   | &#9745; | &#9745;  | &#9744;    | &#9744;    |
 | 10.3.3      | &#9745;   | &#9745;     | &#9745;   | &#9745; | &#9745;  | &#9744;    | &#9744;    |
 | 11.3        | &#9745;   | &#9745;     | &#9745;   | &#9745; | &#9745;  | &#9744;    | &#9744;    |
 | 12.1        | &#9745;   | &#9745;     | &#9745;   | &#9745; | &#9745;  | &#9744;    | &#9744;    |
+
+Other iOS versions not listed in the chart may also work but they might have unexpected broken features/jailbreak
 
 ## How do I use this?
 
@@ -46,9 +49,7 @@ When the script asks `[*] Please enter the iOS version that is currently install
 
 It should then begin the process of downgrading your device. Please follow the on screen instructions. This might take a while. Your device will reboot multiple times.
 
-If you downgraded to iOS 10 or later, please use the jailbreak app on your home screen to begin jailbreaking your device.
-
-If you downgraded to iOS 9, please use https://jbme.ddw.nu from safari to begin jailbreaking your device.
+If you downgraded to iOS 9 or later, please use the jailbreak app on your home screen to begin jailbreaking your device.
 
 ## Subsequent runs after downgrade is finished
 
@@ -64,7 +65,7 @@ It should just boot to your requested iOS version normally.
 
 macOS Catalina or later, or Linux. The script only officially supports these versions.
 
-Intel Mac. Hackintoshes with AMD CPUs will **NOT** work with this.
+Hackintoshes with AMD CPUs will **NOT** work with this.
 
 Stable internet connection. Please don't try using this with dial up...
 
@@ -73,6 +74,14 @@ At least 20GB of free space on your computer
 USB Type-A port and Lightning cable. USB Type-C ports will **NOT** work with this script. If you're using a Mac that only has a USB-C port (such as 12" MacBooks, and late Intel MacBook Airs) a dongle/dock with a USB-A port should work just fine with a standard USB-A to Lightning cable.
 
 Working iDevice: The script has to backup `apticket.der`, `sep-firmware.img4`, `Baseband`, and `keybags` from your device before you can downgrade to an older iOS version.
+
+## Support
+
+No support
+
+Do not expect any more updates, especially with all that has happened surrounding this tool
+
+It may be better to rewrite the entire thing and/or create/use another tool
 
 ## Setup.app bypass
 
@@ -89,7 +98,7 @@ We back up the `activation_records` from your main OS prior to downgrading your 
    ### Deep sleep, device won't turn on after locking it, have to reboot.
    The issue that causes deep sleep is unfortunately **unfixable**. There is, however, a workaround to this:
 
-   Install the tweak "Insomnia" from BigBoss or "Fiona" from the repo https://julioverne.github.io
+   Install the tweak "Insomnia" from BigBoss repo or "Fiona" from the repo https://julioverne.github.io
       
    *Note: This does slightly affect battery life due to the way it works. You probably aren't using this script for battery life though, are you.
 
@@ -106,14 +115,21 @@ We back up the `activation_records` from your main OS prior to downgrading your 
    ### Cydia is absent (on iPads)
    iPads have uicache issues with most jailbreaking tools. To open Cydia, enter `cydia://` in Safari's address bar and press Enter.
 
+   ### Pangu is absent (on iPads)
+   iPads have uicache issues with most jailbreaking tools. To open Cydia, enter `nvwastone://` in Safari's address bar and press Enter.
+
    ### Meridian is absent (on iPads)
    iPads have uicache issues with most jailbreaking tools. To open Meridian, enter `meridian://` in Safari's address bar and press Enter. Until further notice, this does not work, due to Safari not working on that version of iOS. This may be fixed at a later date. Sorry for the inconvenience.
 
    ### Terminal is absent (on iPads)
    iPads have uicache issues with most jailbreaking tools. To open Terminal, enter `mterminal://` in Safari's address bar and press Enter.  
 
-   ### Safari and others apps broken (iOS 7)
-   Reboot your device using Semaphorin. When the device boots back up, open the Terminal app on your home screen, and type `su -` and press Enter. When it asks for you for a password, type `alpine` and hit Enter. Then you can type `reload` and hit Enter. This will patch sandbox and load all your tweaks to allow all your apps and tweaks to work as normal. It may fail the first time due to a malloc error, just close out of Terminal and re open the app. Do the same process over again and it should respring the device. All the apps on your device should now be working properly if you follow these steps.
+   ### Jailbreak/tweaks and other apps do not work (iOS 7 and 8)
+   Open Terminal, type `su` -> `alpine` (input is invisible but still being typed) -> `reload`
+
+   This is to be done every (re)boot
+
+   It may fail the first time due to a malloc error, just close out of Terminal and re open the app. Do the same process over again and it should respring the device. All the apps on your device should now be working properly if you follow these steps.
  
 ## Credits
 
