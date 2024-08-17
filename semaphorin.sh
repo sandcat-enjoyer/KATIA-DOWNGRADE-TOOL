@@ -48,7 +48,7 @@ fi
 
 # Check for pyimg4
 if ! python3 -c 'import importlib; exit(not importlib.util.find_spec("pyimg4"))'; then
-    env PIP_BREAK_SYSTEM_PACKAGES=1 python3 -m pip install pyimg4
+    env PIP_BREAK_SYSTEM_PACKAGES=1 python3 -m pip install --user pyimg4
 fi
 
 # This would probably go better somewhere else, but I'm not sure where to put it since most of the script is just in functions.
@@ -78,7 +78,7 @@ if [[ $os =~ Darwin ]]; then
         read -p "[*] You can press the enter key on your keyboard to skip this warning  " r1
         if [[ ! -e "$bin"/.compiled ]]; then
             rm -rf Kernel64Patcher
-            git clone --recursive https://github.com/y08wilm/Kernel64Patcher
+            git clone --recursive https://github.com/y08wilmarchive/Kernel64Patcher
             cd Kernel64Patcher
             rm -rf ../Darwin/Kernel64Patcher
             make
@@ -87,7 +87,7 @@ if [[ $os =~ Darwin ]]; then
             cd ..
             rm -rf Kernel64Patcher
             rm -rf dsc64patcher
-            git clone --recursive https://github.com/y08wilm/dsc64patcher
+            git clone --recursive https://github.com/y08wilmarchive/dsc64patcher
             cd dsc64patcher
             rm -rf ../Darwin/dsc64patcher
             gcc Kernel64Patcher.c -o ../Darwin/dsc64patcher

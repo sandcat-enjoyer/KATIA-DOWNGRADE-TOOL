@@ -15,9 +15,11 @@
 
 No support
 
-Do not expect updates to this anymore, especially with all that has happened surrounding this tool
+Do not expect updates to this anymore, especially with all the events that have happened surrounding this tool
 
 It may be better for someone to rewrite the entire thing, and/or just create or use another tool
+
+Note: This fork has mostly only been tested on Linux. For macOS, try doing the [usbd trick](https://www.reddit.com/r/iphone/comments/a8jui7/tip_if_your_having_issues_charging_your_device/) (running `sudo killall -STOP -c usbd`) if your device is not getting detected properly. If it still does not work, maybe try the other [archived Semaphorin](https://github.com/y08wilmarchive/Semaphorin)
 
 ## Chart of compatibility
 
