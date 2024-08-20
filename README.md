@@ -130,7 +130,7 @@ We back up the `activation_records` from your main OS prior to downgrading your 
    iPads have uicache issues with most jailbreaking tools. To open Cydia, enter `nvwastone://` in Safari's address bar and press Enter.
 
    ### Meridian is absent (on iPads)
-   iPads have uicache issues with most jailbreaking tools. To open Meridian, enter `meridian://` in Safari's address bar and press Enter. Until further notice, this does not work, due to Safari not working on that version of iOS. This may be fixed at a later date. Sorry for the inconvenience.
+   iPads have uicache issues with most jailbreaking tools. To open Meridian, find and open the Tips app on your home screen. Until further notice, this does not work. This may be fixed at a later date. Sorry for the inconvenience.
 
    ### Terminal is absent (on iPads)
    iPads have uicache issues with most jailbreaking tools. To open Terminal, enter `mterminal://` in Safari's address bar and press Enter.  
