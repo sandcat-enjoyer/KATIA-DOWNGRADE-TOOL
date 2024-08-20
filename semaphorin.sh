@@ -47,7 +47,7 @@ if [ "$cmd_not_found" = "1" ]; then
 fi
 
 # Check for pyimg4
-if ! python3 -c 'import importlib; exit(not importlib.util.find_spec("pyimg4"))'; then
+if ! python3 -c 'import importlib.util; exit(not importlib.util.find_spec("pyimg4"))'; then
     env PIP_BREAK_SYSTEM_PACKAGES=1 python3 -m pip install --user pyimg4
 fi
 
