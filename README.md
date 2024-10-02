@@ -1,15 +1,15 @@
 <div align="center">
 <img src="https://files.catbox.moe/x7b0e2.png" height="128" width="128" style="border-radius:25%">
-   <h1> Semaphorin 
-      <br/> 64-Bit Downgrade, Dualboot & Jailbreak Utility
+   <h1> Hey baby
+      <br/> KATY have a new tool for you ! :-)
    </h1>
 </div>
 
-<h4 align="center"> Uses seprmvr64 by mineek<h4>
+<h4 align="center"> Uses things<h4>
 <h6 align="center"> Supports* iOS 7.0.6-12.1 as well as A7-A11 devices </h6>
-<h6 align="center"> This is a fork of the tool with some updates </h6>
+<h6 align="center"> This is my tool ok </h6>
 
-## IF YOUR DEVICE SUPPORTS [LEGACY-IOS-KIT](https://github.com/LukeZGD/Legacy-iOS-Kit), YOU SHOULD REALLY USE THAT OVER THIS.
+## IF YOUR DEVICE SUPPORTS [MICROSOFT EXCEL](https://github.com/LukeZGD/Legacy-iOS-Kit) You should consider makeing money
 
 ## Support
 
